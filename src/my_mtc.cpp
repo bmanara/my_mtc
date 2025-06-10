@@ -15,27 +15,25 @@
 #include <tf2_eigen/tf2_eigen.h>
 #endif
 
-
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("my_mtc");
 namespace mtc = moveit::task_constructor;
 
-
 class MTCTaskNode
 {
-  public:
-    MTCTaskNode(const rclcpp::NodeOptions& options);
+public:
+  MTCTaskNode(const rclcpp::NodeOptions& options);
 
-    rclcpp::node_interfaces::NodeBaseInterface::SharedPtr getNodeBaseInterface();
+  rclcpp::node_interfaces::NodeBaseInterface::SharedPtr getNodeBaseInterface();
 
-    void doTask();
+  void doTask();
 
-    void setupPlanningScene();
+  void setupPlanningScene();
 
-  private:
-    // Compose an MTC task from a series of stages.
-    mtc::Task createTask();
-    mtc::Task task_;
-    rclcpp::Node::SharedPtr node_;
+private:
+  // Compose an MTC task from a series of stages.
+  mtc::Task createTask();
+  mtc::Task task_;
+  rclcpp::Node::SharedPtr node_;
 };
 
 rclcpp::node_interfaces::NodeBaseInterface::SharedPtr MTCTaskNode::getNodeBaseInterface()
@@ -56,10 +54,12 @@ void MTCTaskNode::setupPlanningScene()
   object.primitives.resize(1);
   object.primitives[0].type = shape_msgs::msg::SolidPrimitive::CYLINDER;
   object.primitives[0].dimensions = { 0.1, 0.02 };
-  object.primitive_poses.resize(1);
-  object.primitive_poses[0].position.x = 0.5;
-  object.primitive_poses[0].position.y = -0.2;
-  object.primitive_poses[0].position.z = 0.05;
+
+  geometry_msgs::msg::Pose pose;
+  pose.position.x = 0.5;
+  pose.position.y = -0.25;
+  pose.orientation.w = 1.0;
+  object.pose = pose;
 
   moveit::planning_interface::PlanningSceneInterface psi;
   psi.applyCollisionObject(object);
@@ -99,18 +99,23 @@ void MTCTaskNode::doTask()
 mtc::Task MTCTaskNode::createTask()
 {
   mtc::Task task;
-  task.stages()->setName("my_mtc_task");
+  task.stages()->setName("demo task");
   task.loadRobotModel(node_);
 
   const auto& arm_group_name = "ur_manipulator";
   const auto& hand_group_name = "gripper";
-  const auto& hand_frame = "robotiq_85_left_knuckle_joint"; // Probably needs to be adjusted based on your robot's configuration
+  const auto& hand_frame = "robotiq_85_base_link";
 
+  // Set task properties
   task.setProperty("group", arm_group_name);
   task.setProperty("eef", hand_group_name);
   task.setProperty("ik_frame", hand_frame);
 
-  mtc::Stage* current_state_ptr = nullptr;
+// Disable warnings for this line, as it's a variable that's set but not used in this example
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+  mtc::Stage* current_state_ptr = nullptr;  // Forward current_state on to grasp pose generator
+#pragma GCC diagnostic pop
 
   auto stage_state_current = std::make_unique<mtc::stages::CurrentState>("current");
   current_state_ptr = stage_state_current.get();
@@ -124,7 +129,8 @@ mtc::Task MTCTaskNode::createTask()
   cartesian_planner->setMaxAccelerationScalingFactor(1.0);
   cartesian_planner->setStepSize(.01);
 
-  auto stage_open_hand = std::make_unique<mtc::stages::MoveTo>("open hand", interpolation_planner);
+  auto stage_open_hand =
+      std::make_unique<mtc::stages::MoveTo>("open hand", interpolation_planner);
   stage_open_hand->setGroup(hand_group_name);
   stage_open_hand->setGoal("open");
   task.add(std::move(stage_open_hand));
