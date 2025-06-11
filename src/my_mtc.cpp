@@ -123,12 +123,17 @@ mtc::Task MTCTaskNode::createTask()
   task.add(std::move(stage_state_current));
 
   auto sampling_planner = std::make_shared<mtc::solvers::PipelinePlanner>(node_);
+  sampling_planner->setMaxVelocityScalingFactor(0.2);
+  sampling_planner->setMaxAccelerationScalingFactor(0.2);
+
   auto interpolation_planner = std::make_shared<mtc::solvers::JointInterpolationPlanner>();
+  interpolation_planner->setMaxVelocityScalingFactor(0.2);
+  interpolation_planner->setMaxAccelerationScalingFactor(0.2);
 
   auto cartesian_planner = std::make_shared<mtc::solvers::CartesianPath>();
-  cartesian_planner->setMaxVelocityScalingFactor(0.1);
-  cartesian_planner->setMaxAccelerationScalingFactor(0.1);
-  cartesian_planner->setStepSize(.01);
+  cartesian_planner->setMaxVelocityScalingFactor(0.2);
+  cartesian_planner->setMaxAccelerationScalingFactor(0.2);
+  cartesian_planner->setStepSize(.001);
 
   auto stage_open_hand =
       std::make_unique<mtc::stages::MoveTo>("open hand", interpolation_planner);
@@ -179,7 +184,7 @@ mtc::Task MTCTaskNode::createTask()
                             Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitY()) *
                             Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitZ());
       grasp_frame_transform.linear() = q.matrix();
-      grasp_frame_transform.translation().x() = 0.15; // Adjust this based on your robot's configuration
+      grasp_frame_transform.translation().x() = 0.125; // Adjust this based on your robot's configuration
       // grasp_frame_transform.translation().y() = 0.2;
       // grasp_frame_transform.translation().z() = 0.1;
 
@@ -256,6 +261,7 @@ mtc::Task MTCTaskNode::createTask()
         geometry_msgs::msg::PoseStamped target_pose_msg;
         target_pose_msg.header.frame_id = "object";
         target_pose_msg.pose.position.y = 0.5;
+        target_pose_msg.pose.position.z = 0.05; // Adjust this based on object's placement height 
         target_pose_msg.pose.orientation.w = 1.0;
         stage->setPose(target_pose_msg);
         stage->setMonitoredStage(attach_object_stage);
